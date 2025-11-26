@@ -117,23 +117,29 @@ async function login(username, password) {
 
     try {
         const response = await fetch(CONFIG.loginUrl, fetchOptions);
+        console.log("Full response object:", response);
+        console.log("Response ok:", response.ok);
+        console.log("Response status:", response.status);
+        console.log("Response type:", response.type);
+        console.log("Response bodyUsed:", response.bodyUsed);
+        
         const raw = await response.text();
+        console.log("Raw response type:", typeof raw);
+        console.log("Raw response length:", raw.length);
+        console.log("Raw response (first 500 chars):", raw.substring(0, 500));
+        console.log("Raw response (last 500 chars):", raw.substring(raw.length - 500));
         
-        // Remove all whitespace and newlines, then find JSON
-        const cleaned = raw.trim();
-        console.log("Cleaned response:", cleaned);
-        console.log("Response length:", cleaned.length);
+        // Try to extract JSON - the original Node.js script used lastIndexOf
+        const jsonStart = raw.lastIndexOf('{');
+        console.log("JSON start position:", jsonStart);
         
-        // Try to find JSON object in the response
-        let jsonStart = cleaned.indexOf('{');
         if (jsonStart === -1) {
-            console.error("No JSON found in response");
-            throw new Error("Invalid response from server");
+            console.error("No JSON found. Full response:", raw);
+            throw new Error("Server did not return JSON. Check Network tab Response.");
         }
         
-        // Get everything from first { to the end
-        const jsonPart = cleaned.slice(jsonStart);
-        console.log("JSON part:", jsonPart);
+        const jsonPart = raw.slice(jsonStart);
+        console.log("Extracted JSON:", jsonPart);
         
         const data = JSON.parse(jsonPart);
         console.log("Parsed data:", data);
@@ -146,7 +152,7 @@ async function login(username, password) {
     } catch (error) {
         console.error("Login error:", error);
         if (error instanceof SyntaxError) {
-            throw new Error("Failed to parse server response");
+            throw new Error("Failed to parse JSON from server");
         }
         if (error instanceof TypeError && error.message.includes('fetch')) {
             throw new Error("Network error. Please check your connection.");
