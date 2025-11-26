@@ -116,22 +116,30 @@ async function login(username, password) {
     try {
         const response = await fetch(CONFIG.loginUrl, fetchOptions);
         const raw = await response.text();
+        console.log("Raw response:", raw);
 
         // Parse JSON from response
         const jsonStart = raw.lastIndexOf('{');
         if (jsonStart === -1) {
-            throw new Error("Invalid response from server");
+            console.error("No JSON found. Raw response:", raw);
+            throw new Error("Invalid response from server. Please check console.");
         }
         const jsonPart = raw.slice(jsonStart);
+        console.log("JSON part:", jsonPart);
+        
         const data = JSON.parse(jsonPart);
+        console.log("Parsed data:", data);
 
         if (data.msg === "success" && data.token) {
             return data.token;
         } else {
-            throw new Error(data.msgdesc || "Login failed");
+            throw new Error(data.msgdesc || data.msg || "Login failed");
         }
     } catch (error) {
         console.error("Login error:", error);
+        if (error instanceof SyntaxError) {
+            throw new Error("Failed to parse server response");
+        }
         if (error instanceof TypeError && error.message.includes('fetch')) {
             throw new Error("Network error. Please check your connection.");
         }
