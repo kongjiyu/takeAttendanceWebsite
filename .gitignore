@@ -1,0 +1,8 @@
+node_modules/
+.vercel
+.env
+.DS_Store
+*.log
+.vscode/
+takeAttendance.js
+WEBSITE_PLAN.md
