@@ -117,18 +117,22 @@ async function login(username, password) {
 
     try {
         const response = await fetch(CONFIG.loginUrl, fetchOptions);
-        console.log("Response status:", response.status);
-        console.log("Response headers:", Object.fromEntries(response.headers.entries()));
         const raw = await response.text();
-        console.log("Raw response:", raw);
-
-        // Parse JSON from response
-        const jsonStart = raw.lastIndexOf('{');
+        
+        // Remove all whitespace and newlines, then find JSON
+        const cleaned = raw.trim();
+        console.log("Cleaned response:", cleaned);
+        console.log("Response length:", cleaned.length);
+        
+        // Try to find JSON object in the response
+        let jsonStart = cleaned.indexOf('{');
         if (jsonStart === -1) {
-            console.error("No JSON found. Raw response:", raw);
-            throw new Error("Invalid response from server. Please check console.");
+            console.error("No JSON found in response");
+            throw new Error("Invalid response from server");
         }
-        const jsonPart = raw.slice(jsonStart);
+        
+        // Get everything from first { to the end
+        const jsonPart = cleaned.slice(jsonStart);
         console.log("JSON part:", jsonPart);
         
         const data = JSON.parse(jsonPart);
