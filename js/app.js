@@ -1,9 +1,11 @@
 // Configuration
 const CONFIG = {
-    loginUrl: "/api/login",
-    attendanceUrl: "/api/attendance",
+    // Try direct API calls first (will work if you're on school WiFi and CORS allows it)
+    loginUrl: "https://app.tarc.edu.my/MobileService/login.jsp",
+    attendanceUrl: "https://app.tarc.edu.my/MobileService/services/AJAXAttendance.jsp",
     deviceId: getDeviceId(),
-    deviceModel: getDeviceModel()
+    deviceModel: getDeviceModel(),
+    appVersion: "2.0.18"
 };
 
 function getDeviceId() {
@@ -95,29 +97,38 @@ function setLoading(isLoading, buttonElement, originalText) {
 
 // API Functions
 async function login(username, password) {
-    const loginData = {
+    const loginData = new URLSearchParams({
         username: username,
         password: password,
         deviceid: CONFIG.deviceId,
-        devicemodel: CONFIG.deviceModel
-    };
+        devicemodel: CONFIG.deviceModel,
+        appversion: CONFIG.appVersion
+    });
 
     const fetchOptions = {
         method: "POST",
         headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/x-www-form-urlencoded'
         },
-        body: JSON.stringify(loginData)
+        body: loginData.toString()
     };
 
     try {
         const response = await fetch(CONFIG.loginUrl, fetchOptions);
-        const data = await response.json();
+        const raw = await response.text();
 
-        if (data.Status === "Success") {
-            return data.Data.Auth_Token;
+        // Parse JSON from response
+        const jsonStart = raw.lastIndexOf('{');
+        if (jsonStart === -1) {
+            throw new Error("Invalid response from server");
+        }
+        const jsonPart = raw.slice(jsonStart);
+        const data = JSON.parse(jsonPart);
+
+        if (data.msg === "success" && data.token) {
+            return data.token;
         } else {
-            throw new Error(data.Data.Message || "Login failed");
+            throw new Error(data.msgdesc || "Login failed");
         }
     } catch (error) {
         console.error("Login error:", error);
@@ -129,29 +140,33 @@ async function login(username, password) {
 }
 
 async function recordAttendance(token, attendanceCode) {
-    const attendanceData = {
+    const attendanceData = new URLSearchParams({
+        act: "insert",
         fsigncd: attendanceCode,
         deviceid: CONFIG.deviceId,
         devicemodel: CONFIG.deviceModel
-    };
+    });
 
     const fetchOptions = {
         method: "POST",
         headers: {
             'X-Auth': token,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/x-www-form-urlencoded'
         },
-        body: JSON.stringify(attendanceData)
+        body: attendanceData.toString()
     };
 
     try {
         const response = await fetch(CONFIG.attendanceUrl, fetchOptions);
+        if (!response.ok) {
+            throw new Error("Network response was not ok");
+        }
         const data = await response.json();
         
-        if (data.Status === "Success") {
-            return data.Data;
+        if (data.msg === "success") {
+            return { Message: data.msgdesc || "Attendance recorded successfully!" };
         } else {
-            throw new Error(data.Data.Message || "Failed to record attendance");
+            throw new Error(data.msgdesc || "Failed to record attendance");
         }
     } catch (error) {
         console.error("Attendance error:", error);
