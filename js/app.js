@@ -107,6 +107,8 @@ async function login(username, password) {
 
     const fetchOptions = {
         method: "POST",
+        mode: 'cors',
+        credentials: 'omit',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded'
         },
@@ -115,6 +117,8 @@ async function login(username, password) {
 
     try {
         const response = await fetch(CONFIG.loginUrl, fetchOptions);
+        console.log("Response status:", response.status);
+        console.log("Response headers:", Object.fromEntries(response.headers.entries()));
         const raw = await response.text();
         console.log("Raw response:", raw);
 
