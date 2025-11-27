@@ -33,7 +33,7 @@ A simple and beautiful desktop application for TARUMT students to record attenda
 
 1. **Open the app** - You'll see the login screen
 2. **Enter your credentials:**
-   - Student ID (e.g., `22WMR12345`)
+   - Student ID (e.g., `2500001`)
    - Password
 3. **Click "Log In"**
 4. **Done!** Your account is automatically saved
