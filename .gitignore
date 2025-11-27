@@ -6,3 +6,6 @@ node_modules/
 .vscode/
 takeAttendance.js
 WEBSITE_PLAN.md
+dist/
+build/icon.*
+package-lock.json
