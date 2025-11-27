@@ -65,6 +65,8 @@ const closeSettingsBtn = document.getElementById('close-settings-btn');
 const saveSettingsBtn = document.getElementById('save-device-settings-btn');
 const resetSettingsBtn = document.getElementById('reset-device-settings-btn');
 const attendanceHistoryList = document.getElementById('attendance-history-list');
+const refreshClassesBtn = document.getElementById('refresh-classes-btn');
+const attendanceCodeInput = document.getElementById('attendance-code');
 
 // State
 let authToken = sessionStorage.getItem('authToken');
@@ -102,6 +104,7 @@ async function init() {
     closeSettingsBtn.addEventListener('click', closeSettingsModal);
     saveSettingsBtn.addEventListener('click', saveDeviceSettings);
     resetSettingsBtn.addEventListener('click', resetDeviceSettings);
+    refreshClassesBtn.addEventListener('click', () => loadTodayClasses());
     
     // Hide error messages when user starts typing
     loginForm.addEventListener('input', () => {
@@ -112,6 +115,17 @@ async function init() {
     attendanceForm.addEventListener('input', () => {
         if (messageContainer.classList.contains('error')) {
             messageContainer.classList.add('hidden');
+        }
+    });
+    
+    // Restrict attendance code input to numbers only
+    attendanceCodeInput.addEventListener('input', (e) => {
+        e.target.value = e.target.value.replace(/[^0-9]/g, '');
+    });
+    
+    attendanceCodeInput.addEventListener('keypress', (e) => {
+        if (e.key && !/[0-9]/.test(e.key)) {
+            e.preventDefault();
         }
     });
 }
@@ -222,6 +236,114 @@ function showAccountSelection() {
     displayAccountsList();
 }
 
+// Today's Classes Management
+async function loadTodayClasses() {
+    if (!authToken) return;
+    
+    attendanceHistoryList.innerHTML = '<p class="empty-history"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</p>';
+    
+    try {
+        const result = await window.electronAPI.getTodayList(authToken);
+        
+        if (result.success && result.data.classes) {
+            displayTodayClasses(result.data.classes);
+        } else {
+            throw new Error(result.error || 'Failed to load classes');
+        }
+    } catch (error) {
+        console.error('Error loading classes:', error);
+        attendanceHistoryList.innerHTML = '<p class="empty-history">Failed to load today\'s classes</p>';
+    }
+}
+
+function displayTodayClasses(classes) {
+    if (classes.length === 0) {
+        attendanceHistoryList.innerHTML = '<p class="empty-history">No classes today</p>';
+        return;
+    }
+    
+    // Get today's attendance history from local storage
+    const attendanceHistory = getTodayHistory();
+    
+    attendanceHistoryList.innerHTML = '';
+    
+    classes.forEach(classItem => {
+        const card = document.createElement('div');
+        card.className = 'history-card';
+        
+        const classType = {
+            'L': 'Lecture',
+            'T': 'Tutorial',
+            'P': 'Practical'
+        }[classItem.fclass_type] || classItem.fclass_type;
+        
+        // Check if attended: fupddt has value OR found in local storage
+        const hasAttendedViaApp = classItem.fupddt && classItem.fupddt.trim() !== '';
+        
+        // Find matching attendance record from local storage
+        const localAttendanceRecord = attendanceHistory.find(record => {
+            if (!record.classDetails) return false;
+            const recordCourse = record.classDetails.courseCode || record.classDetails.funits;
+            return recordCourse === classItem.funits;
+        });
+        
+        const hasAttendedLocally = !!localAttendanceRecord;
+        const localAttendanceCode = localAttendanceRecord ? localAttendanceRecord.code : null;
+        const localAttendanceTime = localAttendanceRecord ? new Date(localAttendanceRecord.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : null;
+        
+        card.innerHTML = `
+            <div class="history-header">
+                <div class="history-course">
+                    <h3>
+                        ${classItem.funits}
+                        <span class="class-type-badge inline-badge">${classType}</span>
+                    </h3>
+                    <p>${classItem.fdesc}</p>
+                </div>
+                <div class="history-time">
+                    ${hasAttendedLocally ? `
+                        <span style="font-size: 13px; color: var(--ios-text-secondary);">Attended at</span>
+                        <span style="font-size: 15px; font-weight: 600; color: var(--ios-blue);">${localAttendanceTime}</span>
+                    ` : `
+                        <span style="font-size: 13px; color: var(--ios-text-secondary);">Class time</span>
+                        <span style="font-size: 15px; font-weight: 600; color: var(--ios-blue);">${classItem.fstartdt}</span>
+                    `}
+                </div>
+            </div>
+            <div class="class-details">
+                <i class="fa-solid fa-clock"></i>
+                <span>${classItem.fstartdt} - ${classItem.fenddt}</span>
+            </div>
+            <div class="class-details">
+                <i class="fa-solid fa-location-dot"></i>
+                <span>${classItem.fvenue_label}</span>
+            </div>
+            <div class="lecture-by">
+                <i class="fa-solid fa-chalkboard-user"></i>
+                <span>${classItem.fstaffnm}</span>
+            </div>
+            ${hasAttendedLocally ? `
+                <div class="attendance-status" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--ios-separator); display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-check-circle" style="color: var(--ios-green); font-size: 16px;"></i>
+                    <span style="color: var(--ios-green); font-weight: 600;">Attended via App (Code: ${localAttendanceCode})</span>
+                </div>
+            ` : hasAttendedViaApp ? `
+                <div class="attendance-status" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--ios-separator); display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-check-circle" style="color: var(--ios-green); font-size: 16px;"></i>
+                    <span style="color: var(--ios-green); font-weight: 600;">Attended (Updated: ${classItem.fupddt})</span>
+                </div>
+            ` : `
+                <div class="attendance-status" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--ios-separator); display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-circle-exclamation" style="color: var(--ios-text-secondary); font-size: 16px;"></i>
+                    <span style="color: var(--ios-text-secondary); font-weight: 500;">Not attended yet</span>
+                </div>
+            `}
+        `;
+        
+        attendanceHistoryList.appendChild(card);
+    });
+}
+
 // Attendance History Management
 function getTodayKey() {
     const today = new Date();
@@ -246,9 +368,12 @@ function saveAttendanceHistory(code, classDetails) {
     
     history.push(record);
     localStorage.setItem(`attendance_history_${todayKey}`, JSON.stringify(history));
+    
+    // Reload today's classes to update attendance status
+    loadTodayClasses();
 }
 
-function displayAttendanceHistory() {
+function displayAttendanceHistory_OLD() {
     const history = getTodayHistory();
     
     if (history.length === 0) {
@@ -346,8 +471,8 @@ function showAttendanceSection() {
     displayUsername.innerHTML = `${displayName} <span style="display:block; font-size: 13px; color: var(--ios-text-secondary); font-weight: 400; margin-top: 2px;">${displayId}</span>`;
     messageContainer.classList.add('hidden');
     
-    // Display today's attendance history
-    displayAttendanceHistory();
+    // Load today's classes (which now includes attendance status)
+    loadTodayClasses();
 }
 
 // Device Settings Modal
@@ -528,8 +653,38 @@ function handleLogout() {
     showMessage('Logged out successfully.', 'info');
 }
 
+// Update notification handling
+let updateInfo = null;
+
+function initUpdateChecker() {
+    // Listen for update notifications from main process
+    window.electronAPI.onUpdateAvailable((info) => {
+        updateInfo = info;
+        showUpdateBanner(info);
+    });
+}
+
+function showUpdateBanner(info) {
+    const updateBanner = document.getElementById('update-banner');
+    const updateVersion = document.getElementById('update-version');
+    const downloadBtn = document.getElementById('download-update-btn');
+    const dismissBtn = document.getElementById('dismiss-update-btn');
+    
+    updateVersion.textContent = `Version ${info.version} is ready to download`;
+    updateBanner.classList.remove('hidden');
+    
+    downloadBtn.onclick = () => {
+        window.electronAPI.openUpdateUrl(info.url);
+    };
+    
+    dismissBtn.onclick = () => {
+        updateBanner.classList.add('hidden');
+    };
+}
+
 // Make functions globally accessible for inline event handlers
 window.deleteAccount = deleteAccount;
 
 // Start the app
 init();
+initUpdateChecker();

@@ -10,5 +10,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
         ipcRenderer.invoke('record-attendance', token, code, deviceId, deviceModel),
     
     getDeviceInfo: () => 
-        ipcRenderer.invoke('get-device-info')
+        ipcRenderer.invoke('get-device-info'),
+    
+    getTodayList: (token) => 
+        ipcRenderer.invoke('get-today-list', token),
+    
+    checkForUpdates: () => 
+        ipcRenderer.invoke('check-for-updates'),
+    
+    openUpdateUrl: (url) => 
+        ipcRenderer.invoke('open-update-url', url),
+    
+    onUpdateAvailable: (callback) => 
+        ipcRenderer.on('update-available', (event, updateInfo) => callback(updateInfo))
 });

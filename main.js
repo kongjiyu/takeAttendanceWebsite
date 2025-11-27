@@ -1,8 +1,9 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
-const { login, recordAttendance } = require('./api/attendance');
+const fetch = require('node-fetch');
+const { login, recordAttendance, getTodayList } = require('./api/attendance');
 
 let mainWindow;
 
@@ -10,15 +11,18 @@ function createWindow() {
     mainWindow = new BrowserWindow({
         width: 900,
         height: 700,
+        minWidth: 800,
+        minHeight: 650,
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             nodeIntegration: false,
             contextIsolation: true
         },
-        title: 'TARC Attendance',
+        title: 'TARUMT Attendance',
         resizable: true,
         minimizable: true,
-        maximizable: true
+        maximizable: true,
+        autoHideMenuBar: true  // Auto-hide menu bar (press Alt to show)
     });
 
     mainWindow.loadFile('src/index.html');
@@ -31,9 +35,42 @@ function createWindow() {
     });
 }
 
+// Check for updates
+async function checkForUpdates() {
+    try {
+        const response = await fetch('https://api.github.com/repos/kongjiyu/TarumtAttendanceApp/releases/latest');
+        const data = await response.json();
+        
+        const latestVersion = data.tag_name.replace('v', '');
+        const currentVersion = app.getVersion();
+        
+        if (latestVersion !== currentVersion) {
+            return {
+                hasUpdate: true,
+                version: latestVersion,
+                url: data.html_url,
+                releaseNotes: data.body
+            };
+        }
+        
+        return { hasUpdate: false };
+    } catch (error) {
+        console.error('Error checking for updates:', error);
+        return { hasUpdate: false, error: true };
+    }
+}
+
 // App lifecycle
 app.whenReady().then(() => {
     createWindow();
+    
+    // Check for updates after window is created
+    setTimeout(async () => {
+        const updateInfo = await checkForUpdates();
+        if (updateInfo.hasUpdate && mainWindow) {
+            mainWindow.webContents.send('update-available', updateInfo);
+        }
+    }, 3000); // Check 3 seconds after launch
 
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) {
@@ -43,9 +80,8 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') {
-        app.quit();
-    }
+    // Quit the app when all windows are closed on all platforms
+    app.quit();
 });
 
 // IPC Handlers
@@ -61,6 +97,15 @@ ipcMain.handle('login', async (event, username, password, deviceId, deviceModel)
 ipcMain.handle('record-attendance', async (event, token, code, deviceId, deviceModel) => {
     try {
         const result = await recordAttendance(token, code, deviceId, deviceModel);
+        return { success: true, data: result };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('get-today-list', async (event, token) => {
+    try {
+        const result = await getTodayList(token);
         return { success: true, data: result };
     } catch (error) {
         return { success: false, error: error.message };
@@ -154,4 +199,14 @@ ipcMain.handle('get-device-info', async () => {
             arch: process.arch
         };
     }
+});
+
+// Check for updates manually
+ipcMain.handle('check-for-updates', async () => {
+    return await checkForUpdates();
+});
+
+// Open update URL in browser
+ipcMain.handle('open-update-url', async (event, url) => {
+    shell.openExternal(url);
 });

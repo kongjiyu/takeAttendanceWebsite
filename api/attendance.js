@@ -95,7 +95,44 @@ async function recordAttendance(token, attendanceCode, deviceId, deviceModel) {
     }
 }
 
+async function getTodayList(token) {
+    const url = 'https://app.tarc.edu.my/MobileService/services/AJAXAttendance.jsp?act=get-today-list';
+
+    const fetchOptions = {
+        method: "GET",
+        headers: {
+            'X-Auth': token,
+            'Content-Type': 'application/x-www-form-urlencoded'
+        }
+    };
+
+    try {
+        const response = await fetch(url, fetchOptions);
+        if (!response.ok) {
+            throw new Error("Network response was not ok");
+        }
+        
+        const data = await response.json();
+
+        if (data.list) {
+            return {
+                classes: data.list,
+                message: data.msgdesc || ''
+            };
+        } else {
+            return {
+                classes: [],
+                message: data.msgdesc || 'No classes today'
+            };
+        }
+    } catch (error) {
+        console.error("Get today list error:", error);
+        throw new Error(error.message || "Failed to get today's classes");
+    }
+}
+
 module.exports = {
     login,
-    recordAttendance
+    recordAttendance,
+    getTodayList
 };

@@ -21,6 +21,25 @@
             <main>
                 <div id="message-container" class="hidden"></div>
 
+                <!-- Update Banner -->
+                <div id="update-banner" class="update-banner hidden">
+                    <div class="update-content">
+                        <i class="fa-solid fa-download"></i>
+                        <div class="update-text">
+                            <strong>New version available!</strong>
+                            <span id="update-version"></span>
+                        </div>
+                    </div>
+                    <div class="update-actions">
+                        <button id="download-update-btn" class="update-btn-primary">
+                            <i class="fa-solid fa-cloud-download"></i> Download
+                        </button>
+                        <button id="dismiss-update-btn" class="update-btn-secondary">
+                            <i class="fa-solid fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Account Selection Section -->
                 <section id="account-selection-section" class="fade-in hidden">
                     <div id="saved-accounts-list"></div>
@@ -90,11 +109,16 @@
                         </form>
                     </div>
 
-                    <!-- Today's Attendance History -->
+                    <!-- Today's Attendance -->
                     <div class="history-area">
-                        <h2><i class="fa-solid fa-history"></i> Today's Attendance</h2>
+                        <div class="section-header">
+                            <h2><i class="fa-solid fa-calendar-check"></i> Today's Attendance</h2>
+                            <button id="refresh-classes-btn" class="icon-btn" title="Refresh">
+                                <i class="fa-solid fa-rotate"></i>
+                            </button>
+                        </div>
                         <div id="attendance-history-list">
-                            <p class="empty-history">No attendance recorded today</p>
+                            <p class="empty-history"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</p>
                         </div>
                     </div>
                 </section>
