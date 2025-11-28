@@ -23,6 +23,7 @@ function getDeviceId() {
 
 function getDeviceModel() {
     const ua = navigator.userAgent;
+    console.log(ua);
     if (ua.includes("iPhone")) return "iPhone";
     if (ua.includes("iPad")) return "iPad";
     if (ua.includes("Android")) return "Android";

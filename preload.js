@@ -22,5 +22,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
         ipcRenderer.invoke('open-update-url', url),
     
     onUpdateAvailable: (callback) => 
-        ipcRenderer.on('update-available', (event, updateInfo) => callback(updateInfo))
+        ipcRenderer.on('update-available', (event, updateInfo) => callback(updateInfo)),
+    
+    encryptPassword: (password) => 
+        ipcRenderer.invoke('encrypt-password', password),
+    
+    decryptPassword: (encryptedPassword) => 
+        ipcRenderer.invoke('decrypt-password', encryptedPassword)
 });

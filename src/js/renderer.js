@@ -136,20 +136,89 @@ function getSavedAccounts() {
     return accounts ? JSON.parse(accounts) : [];
 }
 
-function saveAccount(username, fullname, token) {
+function saveAccount(username, fullname, token, encryptedPassword = null) {
     const accounts = getSavedAccounts();
     
     // Check if account already exists
     const existingIndex = accounts.findIndex(acc => acc.username === username);
     if (existingIndex !== -1) {
-        // Update existing account
-        accounts[existingIndex] = { username, fullname, token, lastUsed: Date.now() };
+        // Update existing account, preserve password if not provided
+        const existingPassword = accounts[existingIndex].encryptedPassword;
+        accounts[existingIndex] = { 
+            username, 
+            fullname, 
+            token, 
+            encryptedPassword: encryptedPassword || existingPassword,
+            lastUsed: Date.now() 
+        };
     } else {
         // Add new account
-        accounts.push({ username, fullname, token, lastUsed: Date.now() });
+        accounts.push({ 
+            username, 
+            fullname, 
+            token, 
+            encryptedPassword,
+            lastUsed: Date.now() 
+        });
     }
     
     localStorage.setItem('saved_accounts', JSON.stringify(accounts));
+}
+
+// Auto re-login when token expires
+async function autoReLogin(username) {
+    const accounts = getSavedAccounts();
+    const account = accounts.find(acc => acc.username === username);
+    
+    if (!account || !account.encryptedPassword) {
+        return { success: false, error: 'No saved credentials' };
+    }
+    
+    try {
+        // Decrypt the password
+        const password = await window.electronAPI.decryptPassword(account.encryptedPassword);
+        if (!password) {
+            return { success: false, error: 'Failed to decrypt password' };
+        }
+        
+        // Try to login again
+        const result = await window.electronAPI.login(
+            username,
+            password,
+            CONFIG.deviceId,
+            CONFIG.deviceModel
+        );
+        
+        if (result.success) {
+            // Update token in storage
+            authToken = result.data.token;
+            sessionStorage.setItem('authToken', authToken);
+            
+            // Update account with new token
+            saveAccount(username, result.data.fullname, authToken, account.encryptedPassword);
+            
+            return { success: true, token: authToken };
+        } else {
+            return { success: false, error: result.error };
+        }
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+// Check if error indicates token expiry
+function isTokenExpiredError(error) {
+    const expiredKeywords = [
+        'token',
+        'expired',
+        'unauthorized',
+        'invalid session',
+        'session expired',
+        'login required',
+        'authentication'
+    ];
+    const errorLower = (error || '').toLowerCase();
+    return expiredKeywords.some(keyword => errorLower.includes(keyword));
 }
 
 function deleteAccount(username) {
@@ -243,7 +312,20 @@ async function loadTodayClasses() {
     attendanceHistoryList.innerHTML = '<p class="empty-history"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</p>';
     
     try {
-        const result = await window.electronAPI.getTodayList(authToken);
+        let result = await window.electronAPI.getTodayList(authToken);
+        
+        // Check if token expired and try auto re-login
+        if (!result.success && isTokenExpiredError(result.error)) {
+            const reLoginResult = await autoReLogin(currentUsername);
+            if (reLoginResult.success) {
+                // Retry with new token
+                result = await window.electronAPI.getTodayList(reLoginResult.token);
+            } else {
+                // Auto re-login failed
+                attendanceHistoryList.innerHTML = '<p class="empty-history">Session expired. Please login again.</p>';
+                return;
+            }
+        }
         
         if (result.success && result.data.classes) {
             displayTodayClasses(result.data.classes);
@@ -528,8 +610,11 @@ async function handleLogin(e) {
                 sessionStorage.setItem('fullname', currentFullname);
             }
             
-            // Save account for multi-account support
-            saveAccount(username, currentFullname, authToken);
+            // Encrypt password for auto re-login
+            const encryptedPassword = await window.electronAPI.encryptPassword(password);
+            
+            // Save account for multi-account support (with encrypted password)
+            saveAccount(username, currentFullname, authToken, encryptedPassword);
             
             loginForm.reset();
             showAttendanceSection();
@@ -558,12 +643,33 @@ async function handleAttendance(e) {
 
     try {
         // Call Electron API via IPC
-        const result = await window.electronAPI.recordAttendance(
+        let result = await window.electronAPI.recordAttendance(
             authToken,
             code,
             CONFIG.deviceId, 
             CONFIG.deviceModel
         );
+
+        // Check if token expired and try auto re-login
+        if (!result.success && isTokenExpiredError(result.error)) {
+            showMessage('Session expired. Re-authenticating...', 'info');
+            
+            const reLoginResult = await autoReLogin(currentUsername);
+            if (reLoginResult.success) {
+                // Retry attendance with new token
+                result = await window.electronAPI.recordAttendance(
+                    reLoginResult.token,
+                    code,
+                    CONFIG.deviceId, 
+                    CONFIG.deviceModel
+                );
+            } else {
+                // Auto re-login failed, need manual login
+                showMessage('Session expired. Please login again.', 'error');
+                handleLogout();
+                return;
+            }
+        }
 
         if (result.success) {
             // Save to history

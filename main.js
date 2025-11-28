@@ -1,9 +1,60 @@
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, safeStorage } = require('electron');
 const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
 const fetch = require('node-fetch');
 const { login, recordAttendance, getTodayList } = require('./api/attendance');
+
+// Encryption key derived from machine-specific info
+const ENCRYPTION_KEY = crypto.scryptSync(
+    os.hostname() + os.userInfo().username,
+    'tarumt-attendance-salt',
+    32
+);
+const IV_LENGTH = 16;
+
+// Encrypt password
+function encryptPassword(password) {
+    try {
+        // Try to use Electron's safeStorage first (uses OS keychain)
+        if (safeStorage.isEncryptionAvailable()) {
+            const encrypted = safeStorage.encryptString(password);
+            return 'safe:' + encrypted.toString('base64');
+        }
+    } catch (e) {
+        console.log('safeStorage not available, using fallback encryption');
+    }
+    
+    // Fallback to custom encryption
+    const iv = crypto.randomBytes(IV_LENGTH);
+    const cipher = crypto.createCipheriv('aes-256-cbc', ENCRYPTION_KEY, iv);
+    let encrypted = cipher.update(password, 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+    return 'aes:' + iv.toString('hex') + ':' + encrypted;
+}
+
+// Decrypt password
+function decryptPassword(encryptedPassword) {
+    try {
+        if (encryptedPassword.startsWith('safe:')) {
+            // Decrypt using Electron's safeStorage
+            const encrypted = Buffer.from(encryptedPassword.slice(5), 'base64');
+            return safeStorage.decryptString(encrypted);
+        } else if (encryptedPassword.startsWith('aes:')) {
+            // Decrypt using custom AES encryption
+            const parts = encryptedPassword.slice(4).split(':');
+            const iv = Buffer.from(parts[0], 'hex');
+            const encrypted = parts[1];
+            const decipher = crypto.createDecipheriv('aes-256-cbc', ENCRYPTION_KEY, iv);
+            let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+            decrypted += decipher.final('utf8');
+            return decrypted;
+        }
+    } catch (e) {
+        console.error('Decryption failed:', e);
+    }
+    return null;
+}
 
 let mainWindow;
 
@@ -35,6 +86,22 @@ function createWindow() {
     });
 }
 
+// Compare semantic versions: returns true if v1 > v2
+function isNewerVersion(v1, v2) {
+    const parts1 = v1.split('.').map(Number);
+    const parts2 = v2.split('.').map(Number);
+    
+    for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
+        const num1 = parts1[i] || 0;
+        const num2 = parts2[i] || 0;
+        
+        if (num1 > num2) return true;
+        if (num1 < num2) return false;
+    }
+    
+    return false; // versions are equal
+}
+
 // Check for updates
 async function checkForUpdates() {
     try {
@@ -44,7 +111,8 @@ async function checkForUpdates() {
         const latestVersion = data.tag_name.replace('v', '');
         const currentVersion = app.getVersion();
         
-        if (latestVersion !== currentVersion) {
+        // Only show update if latest version is newer than current version
+        if (isNewerVersion(latestVersion, currentVersion)) {
             return {
                 hasUpdate: true,
                 version: latestVersion,
@@ -209,4 +277,14 @@ ipcMain.handle('check-for-updates', async () => {
 // Open update URL in browser
 ipcMain.handle('open-update-url', async (event, url) => {
     shell.openExternal(url);
+});
+
+// Encrypt password for secure storage
+ipcMain.handle('encrypt-password', async (event, password) => {
+    return encryptPassword(password);
+});
+
+// Decrypt password for auto re-login
+ipcMain.handle('decrypt-password', async (event, encryptedPassword) => {
+    return decryptPassword(encryptedPassword);
 });
