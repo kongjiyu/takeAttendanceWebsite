@@ -144,15 +144,7 @@ By default, the app uses your computer's unique device ID. If you want to use di
 
 #### **Where to Get Phone Device ID:**
 
-**Android:**
-
-- Settings → About Phone → Build Number (tap 7 times to enable Developer Mode)
-- Settings → Developer Options → Device ID
-
-**iPhone:**
-
-- Settings → General → About → Model Number
-- For Device ID, use your phone's serial number or IMEI
+> 🚧 **Coming Soon:** A guide on how to obtain your phone's device ID will be added in a future update. For now, you can use any custom identifier you prefer.
 
 ---
 
@@ -208,7 +200,8 @@ If you're managing multiple accounts from the same device, the school's system m
 
 - ✅ All data stored **locally on your device only**
 - ✅ No third-party servers or tracking
-- ✅ Passwords only sent to TARUMT's official authentication server
+- ✅ Passwords are **encrypted** using OS-level security (macOS Keychain / Windows Credential Manager)
+- ✅ Automatic session refresh - no need to re-enter password when token expires
 - ✅ Each user profile on your computer has separate saved accounts
 - ✅ App does not collect or share any personal information
 
