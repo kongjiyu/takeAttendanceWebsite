@@ -258,11 +258,11 @@ async function loadTodayClasses() {
 
 function displayTodayClasses(classes) {
     if (classes.length === 0) {
-        attendanceHistoryList.innerHTML = '<p class="empty-history">No classes today</p>';
+        attendanceHistoryList.innerHTML = '<p class="empty-history">No attendance recorded today</p>';
         return;
     }
     
-    // Get today's attendance history from local storage
+    // Get today's attendance history from local storage (for showing which code was used)
     const attendanceHistory = getTodayHistory();
     
     attendanceHistoryList.innerHTML = '';
@@ -277,19 +277,21 @@ function displayTodayClasses(classes) {
             'P': 'Practical'
         }[classItem.fclass_type] || classItem.fclass_type;
         
-        // Check if attended: fupddt has value OR found in local storage
-        const hasAttendedViaApp = classItem.fupddt && classItem.fupddt.trim() !== '';
-        
-        // Find matching attendance record from local storage
+        // All classes from API are already attended (fupddt has value)
+        // Try to find the attendance code from local storage
         const localAttendanceRecord = attendanceHistory.find(record => {
             if (!record.classDetails) return false;
-            const recordCourse = record.classDetails.courseCode || record.classDetails.funits;
+            
+            // Match by course code
+            const recordCourse = record.classDetails.courseCode || 
+                                record.classDetails.funits || 
+                                record.classDetails.fcunits;
+            
             return recordCourse === classItem.funits;
         });
         
-        const hasAttendedLocally = !!localAttendanceRecord;
-        const localAttendanceCode = localAttendanceRecord ? localAttendanceRecord.code : null;
-        const localAttendanceTime = localAttendanceRecord ? new Date(localAttendanceRecord.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : null;
+        const attendanceCode = localAttendanceRecord ? localAttendanceRecord.code : null;
+        const attendedTime = classItem.fupddt ? classItem.fupddt : null;
         
         card.innerHTML = `
             <div class="history-header">
@@ -301,13 +303,8 @@ function displayTodayClasses(classes) {
                     <p>${classItem.fdesc}</p>
                 </div>
                 <div class="history-time">
-                    ${hasAttendedLocally ? `
-                        <span style="font-size: 13px; color: var(--ios-text-secondary);">Attended at</span>
-                        <span style="font-size: 15px; font-weight: 600; color: var(--ios-blue);">${localAttendanceTime}</span>
-                    ` : `
-                        <span style="font-size: 13px; color: var(--ios-text-secondary);">Class time</span>
-                        <span style="font-size: 15px; font-weight: 600; color: var(--ios-blue);">${classItem.fstartdt}</span>
-                    `}
+                    <span style="font-size: 13px; color: var(--ios-text-secondary);">Attended at</span>
+                    <span style="font-size: 15px; font-weight: 600; color: var(--ios-blue);">${attendedTime || classItem.fstartdt}</span>
                 </div>
             </div>
             <div class="class-details">
@@ -322,22 +319,12 @@ function displayTodayClasses(classes) {
                 <i class="fa-solid fa-chalkboard-user"></i>
                 <span>${classItem.fstaffnm}</span>
             </div>
-            ${hasAttendedLocally ? `
-                <div class="attendance-status" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--ios-separator); display: flex; align-items: center; gap: 8px;">
-                    <i class="fa-solid fa-check-circle" style="color: var(--ios-green); font-size: 16px;"></i>
-                    <span style="color: var(--ios-green); font-weight: 600;">Attended via App (Code: ${localAttendanceCode})</span>
-                </div>
-            ` : hasAttendedViaApp ? `
-                <div class="attendance-status" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--ios-separator); display: flex; align-items: center; gap: 8px;">
-                    <i class="fa-solid fa-check-circle" style="color: var(--ios-green); font-size: 16px;"></i>
-                    <span style="color: var(--ios-green); font-weight: 600;">Attended (Updated: ${classItem.fupddt})</span>
-                </div>
-            ` : `
-                <div class="attendance-status" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--ios-separator); display: flex; align-items: center; gap: 8px;">
-                    <i class="fa-solid fa-circle-exclamation" style="color: var(--ios-text-secondary); font-size: 16px;"></i>
-                    <span style="color: var(--ios-text-secondary); font-weight: 500;">Not attended yet</span>
-                </div>
-            `}
+            <div class="attendance-status" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--ios-separator); display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-check-circle" style="color: var(--ios-green); font-size: 16px;"></i>
+                <span style="color: var(--ios-green); font-weight: 600;">
+                    ${attendanceCode ? `Attended via App (Code: ${attendanceCode})` : 'Attended'}
+                </span>
+            </div>
         `;
         
         attendanceHistoryList.appendChild(card);
@@ -360,66 +347,29 @@ function saveAttendanceHistory(code, classDetails) {
     const todayKey = getTodayKey();
     const history = getTodayHistory();
     
+    // Create a unique identifier for this specific class session
+    // This helps match the exact class when there are multiple sessions of the same course
     const record = {
         code: code,
         timestamp: new Date().toISOString(),
-        classDetails: classDetails
+        classDetails: classDetails,
+        // Store a unique key combining code and timestamp to avoid duplicates
+        uniqueKey: `${code}_${Date.now()}`
     };
     
-    history.push(record);
+    // Check if this exact code was already recorded today (prevent duplicates)
+    const existingIndex = history.findIndex(h => h.code === code);
+    if (existingIndex !== -1) {
+        // Update existing record instead of adding duplicate
+        history[existingIndex] = record;
+    } else {
+        history.push(record);
+    }
+    
     localStorage.setItem(`attendance_history_${todayKey}`, JSON.stringify(history));
     
     // Reload today's classes to update attendance status
     loadTodayClasses();
-}
-
-function displayAttendanceHistory_OLD() {
-    const history = getTodayHistory();
-    
-    if (history.length === 0) {
-        attendanceHistoryList.innerHTML = '<p class="empty-history">No attendance recorded today</p>';
-        return;
-    }
-    
-    attendanceHistoryList.innerHTML = '';
-    
-    // Display in reverse order (most recent first)
-    history.reverse().forEach(record => {
-        const card = document.createElement('div');
-        card.className = 'history-card';
-        
-        const time = new Date(record.timestamp);
-        const timeStr = time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-        
-        let classHTML = '';
-        if (record.classDetails) {
-            const cls = record.classDetails;
-            classHTML = `
-                <div class="class-info">
-                    <div class="course-code">${cls.courseCode || 'N/A'}</div>
-                    <div class="course-desc">${cls.courseDesc || ''}</div>
-                    <div class="class-details">
-                        <i class="fa-solid fa-clock"></i>
-                        <span>${cls.classDetails || ''}</span>
-                    </div>
-                    <div class="lecture-by">
-                        <i class="fa-solid fa-chalkboard-user"></i>
-                        <span>${cls.lectureBy || ''}</span>
-                    </div>
-                </div>
-            `;
-        }
-        
-        card.innerHTML = `
-            <div class="history-card-header">
-                <span class="history-time">${timeStr}</span>
-                <span class="history-code">${record.code}</span>
-            </div>
-            ${classHTML}
-        `;
-        
-        attendanceHistoryList.appendChild(card);
-    });
 }
 
 // UI Functions
@@ -619,9 +569,6 @@ async function handleAttendance(e) {
             // Save to history
             saveAttendanceHistory(code, result.data.classDetails);
             
-            // Refresh history display
-            displayAttendanceHistory();
-            
             showMessage(result.data.message || 'Attendance recorded successfully!', 'success');
             attendanceForm.reset();
         } else {
@@ -665,20 +612,28 @@ function initUpdateChecker() {
 }
 
 function showUpdateBanner(info) {
-    const updateBanner = document.getElementById('update-banner');
+    const updateModal = document.getElementById('update-modal');
     const updateVersion = document.getElementById('update-version');
     const downloadBtn = document.getElementById('download-update-btn');
     const dismissBtn = document.getElementById('dismiss-update-btn');
     
     updateVersion.textContent = `Version ${info.version} is ready to download`;
-    updateBanner.classList.remove('hidden');
+    updateModal.classList.remove('hidden');
     
     downloadBtn.onclick = () => {
         window.electronAPI.openUpdateUrl(info.url);
+        updateModal.classList.add('hidden');
     };
     
     dismissBtn.onclick = () => {
-        updateBanner.classList.add('hidden');
+        updateModal.classList.add('hidden');
+    };
+    
+    // Close modal when clicking outside
+    updateModal.onclick = (e) => {
+        if (e.target === updateModal) {
+            updateModal.classList.add('hidden');
+        }
     };
 }
 

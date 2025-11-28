@@ -763,101 +763,135 @@ footer i {
     line-height: 1.5;
 }
 
-/* Update Banner */
-.update-banner {
+/* Update Modal */
+.update-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 80px;
+    z-index: 10000;
+    animation: fadeIn 0.3s ease;
+}
+
+.update-modal-content {
+    background: white;
+    border-radius: 20px;
+    padding: 32px;
+    max-width: 420px;
+    width: 90%;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: slideDownBounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    text-align: center;
+}
+
+.update-modal-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 20px;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+.update-modal-icon i {
+    font-size: 32px;
     color: white;
-    border-radius: 12px;
-    padding: 16px;
-    margin-bottom: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-    animation: slideDown 0.4s ease;
 }
 
-.update-content {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex: 1;
-}
-
-.update-content i {
+.update-modal-body h2 {
     font-size: 24px;
-    color: white;
+    font-weight: 700;
+    color: var(--ios-text);
+    margin: 0 0 12px;
 }
 
-.update-text {
+.update-modal-body p {
+    font-size: 15px;
+    color: var(--ios-text-secondary);
+    margin: 0 0 24px;
+    line-height: 1.5;
+}
+
+.update-modal-actions {
     display: flex;
     flex-direction: column;
-    text-align: left;
-    gap: 2px;
+    gap: 12px;
 }
 
-.update-text strong {
-    font-size: 15px;
-    font-weight: 600;
-}
-
-.update-text span {
-    font-size: 13px;
-    opacity: 0.9;
-}
-
-.update-actions {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-}
-
-.update-btn-primary {
-    background: white;
-    color: #667eea;
-    border: none;
-    border-radius: 8px;
-    padding: 8px 16px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    transition: all 0.2s;
-    font-family: var(--font-family);
-}
-
-.update-btn-primary:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-}
-
-.update-btn-primary:active {
-    transform: translateY(0);
-}
-
-.update-btn-secondary {
-    background: rgba(255, 255, 255, 0.2);
+.update-btn-download {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     border: none;
-    border-radius: 8px;
-    width: 32px;
-    height: 32px;
+    border-radius: 12px;
+    padding: 14px 24px;
+    font-size: 16px;
+    font-weight: 600;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 8px;
+    transition: all 0.3s;
+    font-family: var(--font-family);
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.update-btn-download:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.update-btn-download:active {
+    transform: translateY(0);
+}
+
+.update-btn-dismiss {
+    background: transparent;
+    color: var(--ios-text-secondary);
+    border: none;
+    padding: 12px;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
     transition: all 0.2s;
-    font-size: 14px;
+    font-family: var(--font-family);
+    border-radius: 8px;
 }
 
-.update-btn-secondary:hover {
-    background: rgba(255, 255, 255, 0.3);
+.update-btn-dismiss:hover {
+    background: var(--ios-bg);
+    color: var(--ios-text);
 }
 
-.update-btn-secondary:active {
-    transform: scale(0.95);
+@keyframes slideDownBounce {
+    0% {
+        opacity: 0;
+        transform: translateY(-100px) scale(0.8);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
 }
 
 /* Utilities */

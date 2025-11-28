@@ -21,25 +21,6 @@
             <main>
                 <div id="message-container" class="hidden"></div>
 
-                <!-- Update Banner -->
-                <div id="update-banner" class="update-banner hidden">
-                    <div class="update-content">
-                        <i class="fa-solid fa-download"></i>
-                        <div class="update-text">
-                            <strong>New version available!</strong>
-                            <span id="update-version"></span>
-                        </div>
-                    </div>
-                    <div class="update-actions">
-                        <button id="download-update-btn" class="update-btn-primary">
-                            <i class="fa-solid fa-cloud-download"></i> Download
-                        </button>
-                        <button id="dismiss-update-btn" class="update-btn-secondary">
-                            <i class="fa-solid fa-times"></i>
-                        </button>
-                    </div>
-                </div>
-
                 <!-- Account Selection Section -->
                 <section id="account-selection-section" class="fade-in hidden">
                     <div id="saved-accounts-list"></div>
@@ -127,6 +108,27 @@
             <footer>
                 <p><i class="fa-solid fa-wifi"></i> Ensure you are connected to school WiFi</p>
             </footer>
+        </div>
+    </div>
+
+    <!-- Update Modal -->
+    <div id="update-modal" class="update-modal hidden">
+        <div class="update-modal-content">
+            <div class="update-modal-icon">
+                <i class="fa-solid fa-arrow-down-to-bracket"></i>
+            </div>
+            <div class="update-modal-body">
+                <h2>New Update Available!</h2>
+                <p id="update-version">Version 1.1.0 is ready to download</p>
+                <div class="update-modal-actions">
+                    <button id="download-update-btn" class="update-btn-download">
+                        <i class="fa-solid fa-cloud-arrow-down"></i> Download Update
+                    </button>
+                    <button id="dismiss-update-btn" class="update-btn-dismiss">
+                        Remind Me Later
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
