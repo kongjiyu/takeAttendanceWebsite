@@ -3,6 +3,7 @@ const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
 const fetch = require('node-fetch');
+require('dotenv').config();
 const { login, recordAttendance, getTodayList } = require('./api/attendance');
 
 // Encryption key derived from machine-specific info

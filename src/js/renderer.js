@@ -361,15 +361,21 @@ function displayTodayClasses(classes) {
         
         // All classes from API are already attended (fupddt has value)
         // Try to find the attendance code from local storage
+        // Match by course + start time to handle multiple sessions of same course
         const localAttendanceRecord = attendanceHistory.find(record => {
-            if (!record.classDetails) return false;
+            // Get course from record
+            const recordCourse = record.courseCode || 
+                                record.classDetails?.courseCode || 
+                                record.classDetails?.funits || 
+                                record.classDetails?.fcunits || '';
             
-            // Match by course code
-            const recordCourse = record.classDetails.courseCode || 
-                                record.classDetails.funits || 
-                                record.classDetails.fcunits;
+            // Get start time from record
+            const recordStartTime = record.startTime || 
+                                   record.classDetails?.fstartdt || 
+                                   record.classDetails?.startTime || '';
             
-            return recordCourse === classItem.funits;
+            // Match both course AND start time
+            return recordCourse === classItem.funits && recordStartTime === classItem.fstartdt;
         });
         
         const attendanceCode = localAttendanceRecord ? localAttendanceRecord.code : null;
@@ -429,18 +435,29 @@ function saveAttendanceHistory(code, classDetails) {
     const todayKey = getTodayKey();
     const history = getTodayHistory();
     
+    // Extract course and start time from classDetails for unique matching
+    const courseCode = classDetails?.courseCode || classDetails?.funits || classDetails?.fcunits || '';
+    const startTime = classDetails?.fstartdt || classDetails?.startTime || '';
+    
     // Create a unique identifier for this specific class session
-    // This helps match the exact class when there are multiple sessions of the same course
+    // Use course + startTime to uniquely identify each class session
     const record = {
         code: code,
         timestamp: new Date().toISOString(),
         classDetails: classDetails,
-        // Store a unique key combining code and timestamp to avoid duplicates
-        uniqueKey: `${code}_${Date.now()}`
+        // Store course and startTime for matching
+        courseCode: courseCode,
+        startTime: startTime,
+        uniqueKey: `${courseCode}_${startTime}`
     };
     
-    // Check if this exact code was already recorded today (prevent duplicates)
-    const existingIndex = history.findIndex(h => h.code === code);
+    // Check if this exact class session was already recorded (match by course + start time)
+    const existingIndex = history.findIndex(h => {
+        const hCourse = h.courseCode || h.classDetails?.courseCode || h.classDetails?.funits || '';
+        const hStartTime = h.startTime || h.classDetails?.fstartdt || h.classDetails?.startTime || '';
+        return hCourse === courseCode && hStartTime === startTime;
+    });
+    
     if (existingIndex !== -1) {
         // Update existing record instead of adding duplicate
         history[existingIndex] = record;
