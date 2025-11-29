@@ -7,7 +7,7 @@ const CONFIG = {
     attendanceUrl: "https://app.tarc.edu.my/MobileService/services/AJAXAttendance.jsp",
     appVersion: "2.0.19",
     userAgent: "Mozilla/5.0 (Linux; Android 15) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/134.0.6998.39 Mobile Safari/537.36",
-    appSecret: process.env.APP_SECRET || "3f8a7c12d9e54b88b6a2f4d915c3e7a1"
+    appSecret: process.env.APP_SECRET
 };
 
 /**

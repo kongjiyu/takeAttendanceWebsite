@@ -3,7 +3,7 @@ const readline = require('readline');
 const crypto = require('crypto');
 require('dotenv').config();
 
-const APP_SECRET = process.env.APP_SECRET || "3f8a7c12d9e54b88b6a2f4d915c3e7a1";
+const APP_SECRET = process.env.APP_SECRET;
 
 const rl = readline.createInterface({
     input: process.stdin,
