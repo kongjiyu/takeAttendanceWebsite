@@ -704,7 +704,18 @@ async function handleAttendance(e) {
     }
 }
 
-function handleLogout() {
+async function handleLogout() {
+    // Call server logout to remove device session
+    if (authToken && CONFIG.deviceId) {
+        try {
+            await window.electronAPI.logout(authToken, CONFIG.deviceId);
+            console.log('Server session removed');
+        } catch (error) {
+            console.warn('Failed to remove server session:', error);
+            // Continue with local logout anyway
+        }
+    }
+    
     authToken = null;
     currentUsername = null;
     currentFullname = null;

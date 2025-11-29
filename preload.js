@@ -15,6 +15,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getTodayList: (token) => 
         ipcRenderer.invoke('get-today-list', token),
     
+    logout: (token, deviceId) => 
+        ipcRenderer.invoke('logout', token, deviceId),
+    
     checkForUpdates: () => 
         ipcRenderer.invoke('check-for-updates'),
     

@@ -104,7 +104,9 @@ async function getTodayList(token) {
     
     // For GET request with query params
     const params = {
-        act: 'get-today-list'
+        act: 'get-today-list',
+        appversion: '2.0.19',
+        fplatform: 'ios'
     };
     
     const paramsString = Object.entries(params)
@@ -164,7 +166,9 @@ async function submitAttendance(token, code) {
         act: 'insert',
         fsigncd: code,
         deviceid: '12345678-1234-1234-1234-123456789012',
-        devicemodel: 'Test Device'
+        devicemodel: 'Test Device',
+        appversion: '2.0.19',
+        fplatform: 'ios'
     };
     
     // Create signature data

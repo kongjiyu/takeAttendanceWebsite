@@ -4,7 +4,7 @@ const os = require('os');
 const crypto = require('crypto');
 const fetch = require('node-fetch');
 require('dotenv').config();
-const { login, recordAttendance, getTodayList } = require('./api/attendance');
+const { login, recordAttendance, getTodayList, logout } = require('./api/attendance');
 
 // Encryption key derived from machine-specific info
 const ENCRYPTION_KEY = crypto.scryptSync(
@@ -175,6 +175,15 @@ ipcMain.handle('record-attendance', async (event, token, code, deviceId, deviceM
 ipcMain.handle('get-today-list', async (event, token) => {
     try {
         const result = await getTodayList(token);
+        return { success: true, data: result };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('logout', async (event, token, deviceId) => {
+    try {
+        const result = await logout(token, deviceId);
         return { success: true, data: result };
     } catch (error) {
         return { success: false, error: error.message };

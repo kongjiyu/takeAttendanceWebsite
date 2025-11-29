@@ -5,6 +5,7 @@ require('dotenv').config();
 const CONFIG = {
     loginUrl: "https://app.tarc.edu.my/MobileService/studentLogin.jsp",
     attendanceUrl: "https://app.tarc.edu.my/MobileService/services/AJAXAttendance.jsp",
+    logoutUrl: "https://app.tarc.edu.my/MobileService/services/AJAXUpdateUserSession.jsp",
     appVersion: "2.0.19",
     userAgent: "Mozilla/5.0 (Linux; Android 15) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/134.0.6998.39 Mobile Safari/537.36",
     appSecret: process.env.APP_SECRET
@@ -92,12 +93,14 @@ async function recordAttendance(token, attendanceCode, deviceId, deviceModel) {
     // Generate timestamp
     const timestamp = Math.floor(Date.now() / 1000);
     
-    // Create params object
+    // Create params object (include fplatform and appversion for signature)
     const params = {
         act: "insert",
         fsigncd: attendanceCode,
         deviceid: deviceId,
-        devicemodel: deviceModel
+        devicemodel: deviceModel,
+        appversion: CONFIG.appVersion,
+        fplatform: "ios"
     };
     
     // Create signature data: key=value&key=value|timestamp
@@ -147,9 +150,11 @@ async function getTodayList(token) {
     // Generate timestamp
     const timestamp = Math.floor(Date.now() / 1000);
     
-    // For GET request, the params are in the query string
+    // For GET request, include all params for signature
     const params = {
-        act: "get-today-list"
+        act: "get-today-list",
+        appversion: CONFIG.appVersion,
+        fplatform: "ios"
     };
     
     // Create signature data
@@ -196,8 +201,72 @@ async function getTodayList(token) {
     }
 }
 
+/**
+ * Logout - Remove device session from server
+ * This prevents too many device sessions accumulating
+ */
+async function logout(token, deviceId) {
+    // Generate timestamp
+    const timestamp = Math.floor(Date.now() / 1000);
+    
+    // Create params object
+    const params = {
+        deviceid: deviceId,
+        act: "remove",
+        appversion: CONFIG.appVersion,
+        fplatform: "ios"
+    };
+    
+    // Create signature data
+    const paramsString = Object.entries(params)
+        .map(([key, value]) => `${key}=${value}`)
+        .join('&');
+    const signatureData = paramsString + '|' + timestamp;
+    const signature = createSignature(signatureData, CONFIG.appSecret);
+    
+    const logoutData = new URLSearchParams(params);
+
+    const fetchOptions = {
+        method: "POST",
+        headers: {
+            'X-Auth': token,
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-Signature': signature,
+            'X-Timestamp': timestamp.toString()
+        },
+        body: logoutData.toString()
+    };
+
+    try {
+        const response = await fetch(CONFIG.logoutUrl, fetchOptions);
+        const data = await response.json();
+        
+        if (data.msg === "success") {
+            return {
+                success: true,
+                message: data.msgdesc || "Logged out successfully"
+            };
+        } else {
+            // Even if server returns error, we still clear local session
+            console.warn("Logout warning:", data.msgdesc);
+            return {
+                success: true,
+                message: "Session cleared locally"
+            };
+        }
+    } catch (error) {
+        console.error("Logout error:", error);
+        // Still return success to allow local cleanup
+        return {
+            success: true,
+            message: "Session cleared locally"
+        };
+    }
+}
+
 module.exports = {
     login,
     recordAttendance,
-    getTodayList
+    getTodayList,
+    logout
 };
